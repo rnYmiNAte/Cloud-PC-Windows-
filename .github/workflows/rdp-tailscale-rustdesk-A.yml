@@ -1,10 +1,10 @@
 name: RDP / Tailscale / RustDesk - PC A
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
     inputs:
       authkey:
-        description: 'Tailscale auth key'
+        description: 'Tailscale Auth Key'
         required: true
         type: string
 
@@ -13,56 +13,61 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # Step 1: Checkout repo to access spec files
+      # 1) Get working files
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Read PC specifications from JSON
-      - name: Read specifications
+      # 2) Load PC Specs from JSON
+      - name: Load PC Specifications
         id: specs
         run: |
           $spec = Get-Content .\specification.json | ConvertFrom-Json
-          Write-Host "PC Name: $($spec.pc_name)"
-          Write-Host "OS: $($spec.os)"
-          Write-Host "CPU: $($spec.cpu)"
-          Write-Host "RAM: $($spec.ram)"
-          Write-Host "Renderer: $($spec.renderer)"
-          Write-Host "Max Network Speed: $($spec.network_speed)"
-          echo "::set-output name=pc_name::$($spec.pc_name)"
-          echo "::set-output name=os::$($spec.os)"
-          echo "::set-output name=cpu::$($spec.cpu)"
-          echo "::set-output name=ram::$($spec.ram)"
-          echo "::set-output name=renderer::$($spec.renderer)"
-          echo "::set-output name=network::$($spec.network_speed)"
+          echo "PC Name: $($spec.pc_a_name)"
+          echo "::set-output name=pc_name::$($spec.pc_a_name)"
 
-      # Step 3: Install Tailscale if not already installed
+      # 3) Install Tailscale properly + refresh PATH
       - name: Install Tailscale
-  run: |
-    choco install tailscale -y
-    refreshenv   # Fix PATH updates
+        run: |
+          choco install tailscale -y
+          refreshenv
 
-      - name: Verify Tailscale
-  run: |
-    & "C:\Program Files\Tailscale\tailscale.exe" version
-    
-      # Step 4: Authenticate and connect Tailscale
+      # 4) Ensure Tailscale works (fallback to full path)
+      - name: Verify Tailscale Installation
+        shell: powershell
+        run: |
+          $ts = "C:\Program Files\Tailscale\tailscale.exe"
+          if (Test-Path $ts) {
+              Write-Host "Tailscale found at: $ts"
+              & $ts version
+          } else {
+              Write-Error "Tailscale NOT FOUND! Installation may have failed."
+              Exit 1
+          }
+
+      # 5) Connect via Tailscale
       - name: Connect Tailscale
         run: |
-          tailscale up --authkey ${{ github.event.inputs.authkey }} --hostname ${{ steps.specs.outputs.pc_name }}
+          & "C:\Program Files\Tailscale\tailscale.exe" up `
+            --authkey="${{ github.event.inputs.authkey }}" `
+            --hostname="${{ steps.specs.outputs.pc_name }}"
 
-      # Step 5: Verify connection
+      # 6) Show Tailscale IP + Status
       - name: Check Tailscale Status
         run: |
-          tailscale status
-          tailscale ip
+          & "C:\Program Files\Tailscale\tailscale.exe" status
+          & "C:\Program Files\Tailscale\tailscale.exe" ip
 
-      # Step 6: Launch RustDesk
+      # 7) Launch RustDesk
       - name: Launch RustDesk
         run: |
-          Write-Host "Launching RustDesk..."
-          Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+          $rd = "C:\Program Files\RustDesk\rustdesk.exe"
+          if (Test-Path $rd) {
+              Write-Host "Launching RustDesk..."
+              Start-Process $rd
+          } else {
+              Write-Error "RustDesk NOT FOUND at $rd"
+          }
 
-      # Step 7: Log success
-      - name: Workflow complete
-        run: |
-          Write-Host "✅ PC $(${{ steps.specs.outputs.pc_name }}) connected via Tailscale and RustDesk launched successfully!"
+      # 8) Done
+      - name: Done
+        run: echo "✅ Successfully connected PC A via Tailscale & launched RustDesk!"
