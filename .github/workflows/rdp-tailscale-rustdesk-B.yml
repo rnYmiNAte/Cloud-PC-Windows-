@@ -1,10 +1,10 @@
 name: RDP / Tailscale / RustDesk - PC B
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
     inputs:
       authkey:
-        description: 'Tailscale auth key'
+        description: "Tailscale Auth Key"
         required: true
         type: string
 
@@ -13,53 +13,57 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # Step 1: Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Read PC specifications from JSON
-      - name: Read specifications
-        id: specs
+      # 🔐 Generate PC Name + Random Password
+      - name: Generate PC Credentials
+        id: gen
         run: |
-          $spec = Get-Content .\specification.json | ConvertFrom-Json
-          # PC B info
-          Write-Host "PC Name: $($spec.pc_b_name)"
-          Write-Host "OS: $($spec.os)"
-          Write-Host "CPU: $($spec.cpu)"
-          Write-Host "RAM: $($spec.ram)"
-          Write-Host "Renderer: $($spec.renderer)"
-          Write-Host "Max Network Speed: $($spec.network_speed)"
-          echo "::set-output name=pc_name::$($spec.pc_b_name)"
-          echo "::set-output name=os::$($spec.os)"
-          echo "::set-output name=cpu::$($spec.cpu)"
-          echo "::set-output name=ram::$($spec.ram)"
-          echo "::set-output name=renderer::$($spec.renderer)"
-          echo "::set-output name=network::$($spec.network_speed)"
+          $pcName = "PC-B-" + (Get-Random -Maximum 9999)
+          $password = [System.Web.Security.Membership]::GeneratePassword(12,3)
+          echo "::set-output name=pcName::$pcName"
+          echo "::set-output name=password::$password"
 
-      # Step 3: Install Tailscale if not present
+      - name: Show Generated Credentials
+        run: |
+          Write-Host "PC Name: ${{ steps.gen.outputs.pcName }}"
+          Write-Host "Generated Password: ${{ steps.gen.outputs.password }}"
+
+      # 🟢 Install Tailscale
       - name: Install Tailscale
         run: |
           choco install tailscale -y
-          tailscale version
+          refreshenv
 
-      # Step 4: Authenticate and connect Tailscale
+      # 🟢 Verify Tailscale
+      - name: Verify Tailscale
+        shell: powershell
+        run: |
+          $ts = "C:\Program Files\Tailscale\tailscale.exe"
+          if (Test-Path $ts) { & $ts version } else { Exit 1 }
+
+      # 🟢 Connect Tailscale
       - name: Connect Tailscale
         run: |
-          tailscale up --authkey ${{ github.event.inputs.authkey }} --hostname ${{ steps.specs.outputs.pc_name }}
+          & "C:\Program Files\Tailscale\tailscale.exe" up `
+            --authkey="${{ github.event.inputs.authkey }}" `
+            --hostname="${{ steps.gen.outputs.pcName }}"
 
-      # Step 5: Verify connection
-      - name: Check Tailscale Status
+      # 🟢 Install RustDesk IF missing
+      - name: Install RustDesk
+        shell: powershell
         run: |
-          tailscale status
-          tailscale ip
+          $rd = "C:\Program Files\RustDesk\rustdesk.exe"
+          if (-Not (Test-Path $rd)) {
+              choco install rustdesk -y
+              refreshenv
+          }
 
-      # Step 6: Launch RustDesk
-      - name: Launch RustDesk
+      # 🟢 Launch RustDesk
+      - name: Run RustDesk
         run: |
-          Write-Host "Launching RustDesk for PC B..."
           Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
 
-      # Step 7: Log success
-      - name: Workflow complete
-        run: |
-          Write-Host "✅ PC $(${{ steps.specs.outputs.pc_name }}) connected via Tailscale and RustDesk launched successfully!"
+      - name: Done
+        run: echo "PC-B connected via Tailscale & RustDesk started."
