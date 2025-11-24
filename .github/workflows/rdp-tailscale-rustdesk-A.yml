@@ -17,18 +17,24 @@ jobs:
         uses: actions/checkout@v3
 
       # 🔐 Generate PC Name + Random Password
-      - name: Generate PC Credentials
-        id: gen
-        run: |
-          $pcName = "PC-A-" + (Get-Random -Maximum 9999)
-          $password = [System.Web.Security.Membership]::GeneratePassword(12,3)
-          echo "::set-output name=pcName::$pcName"
-          echo "::set-output name=password::$password"
+      - name: Generate PC name and password
+      shell: powershell
+      run: |
+        # Generate PC Name
+        $pcname = "PC-" + -join ((65..90) + (97..122) | Get-Random -Count 6 | % {[char]$_})
 
-      - name: Show Generated Credentials (Visible in Job Summary)
-        run: |
-          Write-Host "PC Name: ${{ steps.gen.outputs.pcName }}"
-          Write-Host "Generated Password: ${{ steps.gen.outputs.password }}"
+        # Generate Secure Password (12 bytes → Base64)
+        Add-Type -AssemblyName System.Security
+        $bytes = New-Object 'System.Byte[]' 12
+        [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+        $password = [Convert]::ToBase64String($bytes)
+
+        Write-Host "PC Name: $pcname"
+        Write-Host "Password: $password"
+
+        # Save to ENV for next steps
+        echo "PC_NAME=$pcname" >> $env:GITHUB_ENV
+        echo "USER_PASS=$password" >> $env:GITHUB_ENV
 
       # 🟢 Install Tailscale
       - name: Install Tailscale
