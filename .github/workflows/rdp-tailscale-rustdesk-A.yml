@@ -57,17 +57,36 @@ jobs:
           & "C:\Program Files\Tailscale\tailscale.exe" status
           & "C:\Program Files\Tailscale\tailscale.exe" ip
 
-      # 7) Launch RustDesk
-      - name: Launch RustDesk
+      # 7) Install RustDesk if missing
+      - name: Install RustDesk
+        shell: powershell
+        run: |
+          $rd = "C:\Program Files\RustDesk\rustdesk.exe"
+          if (-Not (Test-Path $rd)) {
+              Write-Host "RustDesk NOT found. Installing..."
+              choco install rustdesk -y
+              refreshenv   # Update PATH
+          } else {
+              Write-Host "RustDesk already installed."
+          }
+
+      # 8) Verify RustDesk installation
+      - name: Verify RustDesk
+        shell: powershell
         run: |
           $rd = "C:\Program Files\RustDesk\rustdesk.exe"
           if (Test-Path $rd) {
-              Write-Host "Launching RustDesk..."
-              Start-Process $rd
+              Write-Host "RustDesk found at: $rd"
           } else {
-              Write-Error "RustDesk NOT FOUND at $rd"
+              Write-Error "RustDesk installation failed!"
+              Exit 1
           }
 
-      # 8) Done
+      # 9) Launch RustDesk
+      - name: Launch RustDesk
+        run: |
+          Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+      
+      # 10) Done
       - name: Done
         run: echo "✅ Successfully connected PC A via Tailscale & launched RustDesk!"
