@@ -37,10 +37,14 @@ jobs:
 
       # Step 3: Install Tailscale if not already installed
       - name: Install Tailscale
-        run: |
-          choco install tailscale -y
-          tailscale version
+  run: |
+    choco install tailscale -y
+    refreshenv   # Fix PATH updates
 
+      - name: Verify Tailscale
+  run: |
+    & "C:\Program Files\Tailscale\tailscale.exe" version
+    
       # Step 4: Authenticate and connect Tailscale
       - name: Connect Tailscale
         run: |
