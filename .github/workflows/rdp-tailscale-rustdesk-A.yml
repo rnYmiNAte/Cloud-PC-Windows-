@@ -16,31 +16,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 🔐 Generate Username + Random Password
+      # 🔐 Generate PC Info and Credential
 
-      - name: Generate Username & Password
+      - name: Generate PC Name, Username & Password
         shell: pwsh
         run: |
-          # Username Generator (8 characters: a-z0-9)
-          $username = -join ((48..57) + (97..122) | Get-Random -Count 8 | ForEach-Object {[char]$_})
+          # Generate PC Name
+          $RandomID = Get-Random -Minimum 1000 -Maximum 9999
+          $PCName = "WIN-PC-$RandomID"
 
-          # Password Generator (12 characters with special characters)
-          Add-Type -AssemblyName System.Web
-          $password = -join ((33..126) | Get-Random -Count 12 | ForEach-Object {[char]$_})
+          # Generate Username
+          $Username = "user_$RandomID"
 
-          # Show in logs
-          echo "Username: $username"
-          echo "Password: $password"
+          # Generate Secure Password (12 characters, letters + numbers + symbols)
+          $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()'
+          $Password = -join ((1..12) | ForEach-Object { $chars[Get-Random -Maximum $chars.Length] })
 
-          # Export as environment variables (optional)
-          echo "USERNAME=$username" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # Output to GitHub Actions environment
+          echo "PC_NAME=$PCName" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "USERNAME=$Username" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "PASSWORD=$Password" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Use Generated Credentials
-        shell: pwsh
+      - name: Show Generated Values
         run: |
-          echo "Your generated Username is: $env:USERNAME"
-          echo "Your generated Password is: $env:PASSWORD"
+          echo "PC Name     : $env:PC_NAME"
+          echo "Username    : $env:USERNAME"
+          echo "Password    : $env:PASSWORD"
       
       # 🟢 Install RustDesk IF missing
       - name: Install RustDesk
