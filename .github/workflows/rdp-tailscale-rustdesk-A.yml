@@ -16,31 +16,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 🔐 Generate PC Name + Random Password
+      # 🔐 Generate Username + Random Password
 
-      - name: Generate PC name and password
+      - name: Generate Username & Password
         shell: pwsh
         run: |
-          # Generate PC name (Date + Random number)
-          $pcName = "PC-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + (Get-Random -Maximum 9999)
+          # Username Generator (8 characters: a-z0-9)
+          $username = -join ((48..57) + (97..122) | Get-Random -Count 8 | ForEach-Object {[char]$_})
 
-          # Manual password generator (12 chars, includes symbols)
-          $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-          $password = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+          # Password Generator (12 characters with special characters)
+          Add-Type -AssemblyName System.Web
+          $password = -join ((33..126) | Get-Random -Count 12 | ForEach-Object {[char]$_})
 
-          # Output results
-          Write-Output "PC Name: $pcName"
-          Write-Output "Password: $password"
+          # Show in logs
+          echo "Username: $username"
+          echo "Password: $password"
 
-          # Save as environment variables
-          echo "PC_NAME=$pcName" >> $env:GITHUB_ENV
-          echo "PASSWORD=$password" >> $env:GITHUB_ENV
+          # Export as environment variables (optional)
+          echo "USERNAME=$username" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Show Generated Values
+      - name: Use Generated Credentials
+        shell: pwsh
         run: |
-          echo "Generated PC Name: $env:PC_NAME"
-          echo "Generated Password: $env:PASSWORD"
-
+          echo "Your generated Username is: $env:USERNAME"
+          echo "Your generated Password is: $env:PASSWORD"
+      
       # 🟢 Install RustDesk IF missing
       - name: Install RustDesk
         shell: powershell
