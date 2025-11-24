@@ -18,24 +18,38 @@ jobs:
 
       # 🔐 Generate PC Name + Random Password
 
+      name: Generate-PC-Name-And-Password
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: windows-latest
+
+    steps:
       - name: Generate PC name and password
-      shell: powershell
-      run: |
-        # Generate PC Name
-        $pcname = "PC-" + -join ((65..90) + (97..122) | Get-Random -Count 6 | % {[char]$_})
+        shell: pwsh
+        run: |
+          # Generate PC name (Date + Random number)
+          $pcName = "PC-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + (Get-Random -Maximum 9999)
 
-        # Generate Secure Password (12 bytes → Base64)
-        Add-Type -AssemblyName System.Security
-        $bytes = New-Object 'System.Byte[]' 12
-        [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-        $password = [Convert]::ToBase64String($bytes)
+          # Manual password generator (12 chars, includes symbols)
+          $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+          $password = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
 
-        Write-Host "PC Name: $pcname"
-        Write-Host "Password: $password"
+          # Output results
+          Write-Output "PC Name: $pcName"
+          Write-Output "Password: $password"
 
-        # Save to ENV for next steps
-        echo "PC_NAME=$pcname" >> $env:GITHUB_ENV
-        echo "USER_PASS=$password" >> $env:GITHUB_ENV
+          # Save as environment variables
+          echo "PC_NAME=$pcName" >> $env:GITHUB_ENV
+          echo "PASSWORD=$password" >> $env:GITHUB_ENV
+
+      - name: Show Generated Values
+        run: |
+          echo "Generated PC Name: $env:PC_NAME"
+          echo "Generated Password: $env:PASSWORD"
 
       # 🟢 Install RustDesk IF missing
       - name: Install RustDesk
