@@ -19,7 +19,7 @@ jobs:
       # 🔐 Generate PC Name + Random Password
       - name: Generate PC name and password
       shell: powershell
-      run: |
+      run: 
         # Generate PC Name
         $pcname = "PC-" + -join ((65..90) + (97..122) | Get-Random -Count 6 | % {[char]$_})
 
