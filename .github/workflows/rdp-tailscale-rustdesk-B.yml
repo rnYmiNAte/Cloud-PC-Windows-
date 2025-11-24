@@ -1,0 +1,65 @@
+name: RDP / Tailscale / RustDesk - PC B
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      authkey:
+        description: 'Tailscale auth key'
+        required: true
+        type: string
+
+jobs:
+  connect-pc-b:
+    runs-on: windows-latest
+
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Read PC specifications from JSON
+      - name: Read specifications
+        id: specs
+        run: |
+          $spec = Get-Content .\specification.json | ConvertFrom-Json
+          # PC B info
+          Write-Host "PC Name: $($spec.pc_b_name)"
+          Write-Host "OS: $($spec.os)"
+          Write-Host "CPU: $($spec.cpu)"
+          Write-Host "RAM: $($spec.ram)"
+          Write-Host "Renderer: $($spec.renderer)"
+          Write-Host "Max Network Speed: $($spec.network_speed)"
+          echo "::set-output name=pc_name::$($spec.pc_b_name)"
+          echo "::set-output name=os::$($spec.os)"
+          echo "::set-output name=cpu::$($spec.cpu)"
+          echo "::set-output name=ram::$($spec.ram)"
+          echo "::set-output name=renderer::$($spec.renderer)"
+          echo "::set-output name=network::$($spec.network_speed)"
+
+      # Step 3: Install Tailscale if not present
+      - name: Install Tailscale
+        run: |
+          choco install tailscale -y
+          tailscale version
+
+      # Step 4: Authenticate and connect Tailscale
+      - name: Connect Tailscale
+        run: |
+          tailscale up --authkey ${{ github.event.inputs.authkey }} --hostname ${{ steps.specs.outputs.pc_name }}
+
+      # Step 5: Verify connection
+      - name: Check Tailscale Status
+        run: |
+          tailscale status
+          tailscale ip
+
+      # Step 6: Launch RustDesk
+      - name: Launch RustDesk
+        run: |
+          Write-Host "Launching RustDesk for PC B..."
+          Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+
+      # Step 7: Log success
+      - name: Workflow complete
+        run: |
+          Write-Host "✅ PC $(${{ steps.specs.outputs.pc_name }}) connected via Tailscale and RustDesk launched successfully!"

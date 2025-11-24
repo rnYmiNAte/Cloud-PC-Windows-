@@ -1,0 +1,61 @@
+name: Stop RDP / Tailscale / RustDesk
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      pc:
+        description: 'Which PC to stop (A, B, or All)'
+        required: true
+        type: choice
+        options:
+          - A
+          - B
+          - All
+
+jobs:
+  stop-pcs:
+    runs-on: windows-latest
+
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Read PC names from specification.json
+      - name: Read PC names
+        id: pcnames
+        run: |
+          $spec = Get-Content .\specification.json | ConvertFrom-Json
+          echo "::set-output name=pc_a::$($spec.pc_a_name)"
+          echo "::set-output name=pc_b::$($spec.pc_b_name)"
+
+      # Step 3: Stop RustDesk for selected PC(s)
+      - name: Stop RustDesk
+        run: |
+          $pc_input = "${{ github.event.inputs.pc }}"
+          if ($pc_input -eq "A" -or $pc_input -eq "All") {
+              Write-Host "Stopping RustDesk on PC $(${{ steps.pcnames.outputs.pc_a }})..."
+              Get-Process rustdesk -ErrorAction SilentlyContinue | Stop-Process
+          }
+          if ($pc_input -eq "B" -or $pc_input -eq "All") {
+              Write-Host "Stopping RustDesk on PC $(${{ steps.pcnames.outputs.pc_b }})..."
+              Get-Process rustdesk -ErrorAction SilentlyContinue | Stop-Process
+          }
+
+      # Step 4: Disconnect Tailscale for selected PC(s)
+      - name: Disconnect Tailscale
+        run: |
+          $pc_input = "${{ github.event.inputs.pc }}"
+          if ($pc_input -eq "A" -or $pc_input -eq "All") {
+              Write-Host "Disconnecting Tailscale on PC $(${{ steps.pcnames.outputs.pc_a }})..."
+              tailscale down
+          }
+          if ($pc_input -eq "B" -or $pc_input -eq "All") {
+              Write-Host "Disconnecting Tailscale on PC $(${{ steps.pcnames.outputs.pc_b }})..."
+              tailscale down
+          }
+
+      # Step 5: Confirm
+      - name: Workflow complete
+        run: |
+          Write-Host "✅ Selected PC(s) disconnected from Tailscale and RustDesk stopped successfully!"
