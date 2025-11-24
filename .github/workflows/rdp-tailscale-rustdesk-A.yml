@@ -29,8 +29,8 @@ jobs:
           $Username = "user_$RandomID"
 
           # Generate Secure Password (12 characters, letters + numbers + symbols)
-          $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()'
-          $Password = -join ((1..12) | ForEach-Object { $chars[Get-Random -Maximum $chars.Length] })
+          $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+          $password = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
 
           # Output to GitHub Actions environment
           echo "PC_NAME=$PCName" | Out-File -FilePath $env:GITHUB_ENV -Append
