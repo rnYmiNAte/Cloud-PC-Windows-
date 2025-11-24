@@ -18,29 +18,66 @@ jobs:
 
       # 🔐 Generate PC Name + Random Password
 
-      - name: Generate PC name and password
-        shell: pwsh
-        run: |
-          # Generate PC name (random string + timestamp)
-          $pcName = "PC-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + (Get-Random -Maximum 9999)
+      - name: Generate Password
 
-          # Generate password (12 chars, 3 non-alphanumeric)
-          Add-Type -AssemblyName System.Web
-          $password = [System.Web.Security.Membership]::GeneratePassword(12,3)
+on:
+  workflow_dispatch:
 
-          # Output results
-          Write-Output "PC Name: $pcName"
-          Write-Output "Password: $password"
+jobs:
+  generate-password:
+    runs-on: windows-latest
 
-          # Save as environment variables
-          echo "PC_NAME=$pcName" >> $env:GITHUB_ENV
-          echo "PASSWORD=$password" >> $env:GITHUB_ENV
+    outputs:
+      PASSWORD: ${{ steps.passgen.outputs.PASSWORD }}
 
-      - name: Show Generated Values
-        run: |
-          echo "Generated PC Name: $env:PC_NAME"
-          echo "Generated Password: $env:PASSWORD"
-      
+    steps:
+    - name: Generate Secure Password
+      id: passgen
+      shell: pwsh
+      run: |
+        function Generate-SecurePassword {
+            param([int]$Length = 12)
+            $bytes = New-Object 'System.Byte[]' $Length
+            [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+            return [Convert]::ToBase64String($bytes).Substring(0,$Length)
+        }
+
+        $password = Generate-SecurePassword
+        echo "Generated password: $password"
+        echo "PASSWORD=$password" >> $env:GITHUB_OUTPUT
+
+    - name: Use Password
+      shell: pwsh
+      run: |
+        echo "Password from previous step: ${{ needs.generate-password.outputs.PASSWORD }}"
+
+    - name: Generate PC Name
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pcname:
+    runs-on: windows-latest
+
+    outputs:
+      PC_NAME: ${{ steps.pcgen.outputs.PC_NAME }}
+
+    steps:
+    - name: Generate Random PC Name
+      id: pcgen
+      shell: pwsh
+      run: |
+        # Generate PC Name - format: PC-XXXXX (letters + numbers)
+        $pcname = "PC-" + (-join ((65..90) + (48..57) | Get-Random -Count 6 | ForEach-Object {[char]$_}))
+        echo "PC Name: $pcname"
+        echo "PC_NAME=$pcname" >> $env:GITHUB_OUTPUT
+
+    - name: Use PC Name
+      shell: pwsh
+      run: |
+        echo "Generated PC Name: ${{ needs.pcname.outputs.PC_NAME }}"
+        
       # 🟢 Install Tailscale
       - name: Install Tailscale
         run: |
