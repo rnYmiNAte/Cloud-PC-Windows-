@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 🔐 Generate PC Name + Random Password
+      # 🔐 Generate Random Password
 
       - name: Generate Password
 
@@ -51,7 +51,9 @@ jobs:
       run: |
         echo "Password from previous step: ${{ needs.generate-password.outputs.PASSWORD }}"
 
-    - name: Generate PC Name
+    # 🔐 Generate PC Name
+    
+     - name: Generate PC Name
 
 on:
   workflow_dispatch:
