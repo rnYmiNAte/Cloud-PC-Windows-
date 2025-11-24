@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       authkey:
-        description: 'Tailscale Auth Key'
+        description: "Tailscale Auth Key"
         required: true
         type: string
 
@@ -13,80 +13,57 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1) Get working files
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2) Load PC Specs from JSON
-      - name: Load PC Specifications
-        id: specs
+      # 🔐 Generate PC Name + Random Password
+      - name: Generate PC Credentials
+        id: gen
         run: |
-          $spec = Get-Content .\specification.json | ConvertFrom-Json
-          echo "PC Name: $($spec.pc_a_name)"
-          echo "::set-output name=pc_name::$($spec.pc_a_name)"
+          $pcName = "PC-A-" + (Get-Random -Maximum 9999)
+          $password = [System.Web.Security.Membership]::GeneratePassword(12,3)
+          echo "::set-output name=pcName::$pcName"
+          echo "::set-output name=password::$password"
 
-      # 3) Install Tailscale properly + refresh PATH
+      - name: Show Generated Credentials (Visible in Job Summary)
+        run: |
+          Write-Host "PC Name: ${{ steps.gen.outputs.pcName }}"
+          Write-Host "Generated Password: ${{ steps.gen.outputs.password }}"
+
+      # 🟢 Install Tailscale
       - name: Install Tailscale
         run: |
           choco install tailscale -y
           refreshenv
 
-      # 4) Ensure Tailscale works (fallback to full path)
-      - name: Verify Tailscale Installation
+      # 🟢 Verify Tailscale
+      - name: Verify Tailscale
         shell: powershell
         run: |
           $ts = "C:\Program Files\Tailscale\tailscale.exe"
-          if (Test-Path $ts) {
-              Write-Host "Tailscale found at: $ts"
-              & $ts version
-          } else {
-              Write-Error "Tailscale NOT FOUND! Installation may have failed."
-              Exit 1
-          }
+          if (Test-Path $ts) { & $ts version } else { Exit 1 }
 
-      # 5) Connect via Tailscale
+      # 🟢 Connect to Tailscale (use generated hostname)
       - name: Connect Tailscale
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up `
             --authkey="${{ github.event.inputs.authkey }}" `
-            --hostname="${{ steps.specs.outputs.pc_name }}"
+            --hostname="${{ steps.gen.outputs.pcName }}"
 
-      # 6) Show Tailscale IP + Status
-      - name: Check Tailscale Status
-        run: |
-          & "C:\Program Files\Tailscale\tailscale.exe" status
-          & "C:\Program Files\Tailscale\tailscale.exe" ip
-
-      # 7) Install RustDesk if missing
+      # 🟢 Install RustDesk IF missing
       - name: Install RustDesk
         shell: powershell
         run: |
           $rd = "C:\Program Files\RustDesk\rustdesk.exe"
           if (-Not (Test-Path $rd)) {
-              Write-Host "RustDesk NOT found. Installing..."
               choco install rustdesk -y
-              refreshenv   # Update PATH
-          } else {
-              Write-Host "RustDesk already installed."
+              refreshenv
           }
 
-      # 8) Verify RustDesk installation
-      - name: Verify RustDesk
-        shell: powershell
-        run: |
-          $rd = "C:\Program Files\RustDesk\rustdesk.exe"
-          if (Test-Path $rd) {
-              Write-Host "RustDesk found at: $rd"
-          } else {
-              Write-Error "RustDesk installation failed!"
-              Exit 1
-          }
-
-      # 9) Launch RustDesk
-      - name: Launch RustDesk
+      # 🟢 Launch RustDesk
+      - name: Run RustDesk
         run: |
           Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
-      
-      # 10) Done
+
       - name: Done
-        run: echo "✅ Successfully connected PC A via Tailscale & launched RustDesk!"
+        run: echo "PC-A connected via Tailscale & RustDesk started."
