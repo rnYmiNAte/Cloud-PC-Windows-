@@ -1,61 +1,52 @@
-name: Stop RDP / Tailscale / RustDesk
+name: Tailscale Stop/Cleanup (delete devices by prefix)
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
     inputs:
-      pc:
-        description: 'Which PC to stop (A, B, or All)'
-        required: true
-        type: choice
-        options:
-          - A
-          - B
-          - All
+      ts_tailnet:  { description: "Tailscale tailnet (e.g. you@gmail.com)", required: true }
+      ts_api_key:  { description: "Tailscale API key (device admin, no Bearer)", required: true }
+      base_prefix: { description: "Hostname prefix to delete (e.g. bullet)", required: true, default: "bullet" }
+      max_count:   { description: "Max devices to delete", required: false, default: "10" }
+      dry_run:     { description: "true = list only; false = delete", required: false, default: "false" }
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
 
 jobs:
-  stop-pcs:
-    runs-on: windows-latest
-
+  stop:
+    runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout repo
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Step 2: Read PC names from specification.json
-      - name: Read PC names
-        id: pcnames
+      - name: Delete devices with prefix
         run: |
-          $spec = Get-Content .\specification.json | ConvertFrom-Json
-          echo "::set-output name=pc_a::$($spec.pc_a_name)"
-          echo "::set-output name=pc_b::$($spec.pc_b_name)"
+          function Yes($v){ "$v" -match '^(?i:true|1|yes|on)$' }
 
-      # Step 3: Stop RustDesk for selected PC(s)
-      - name: Stop RustDesk
-        run: |
-          $pc_input = "${{ github.event.inputs.pc }}"
-          if ($pc_input -eq "A" -or $pc_input -eq "All") {
-              Write-Host "Stopping RustDesk on PC $(${{ steps.pcnames.outputs.pc_a }})..."
-              Get-Process rustdesk -ErrorAction SilentlyContinue | Stop-Process
-          }
-          if ($pc_input -eq "B" -or $pc_input -eq "All") {
-              Write-Host "Stopping RustDesk on PC $(${{ steps.pcnames.outputs.pc_b }})..."
-              Get-Process rustdesk -ErrorAction SilentlyContinue | Stop-Process
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${{ inputs.ts_api_key }}:"))
+          $tn = [uri]::EscapeDataString("${{ inputs.ts_tailnet }}")
+          $prefix = "${{ inputs.base_prefix }}"
+          $max = [int]"${{ inputs.max_count }}"
+          $dry = Yes("${{ inputs.dry_run }}")
+
+          $list = Invoke-RestMethod -Uri "https://api.tailscale.com/api/v2/tailnet/$tn/devices" -Headers @{ Authorization = "Basic $auth" }
+          $targets = @($list.devices | Where-Object { $_.hostname -like "$prefix*" } | Select-Object -First $max)
+
+          if ($targets.Count -eq 0) { Write-Host "No matching devices."; exit 0 }
+
+          Write-Host "Found $($targets.Count) device(s) with prefix '$prefix':"
+          $targets | ForEach-Object { Write-Host " - $($_.hostname) [$($_.id)]" }
+
+          if ($dry) {
+            Write-Host "Dry run: no deletions performed."
+            exit 0
           }
 
-      # Step 4: Disconnect Tailscale for selected PC(s)
-      - name: Disconnect Tailscale
-        run: |
-          $pc_input = "${{ github.event.inputs.pc }}"
-          if ($pc_input -eq "A" -or $pc_input -eq "All") {
-              Write-Host "Disconnecting Tailscale on PC $(${{ steps.pcnames.outputs.pc_a }})..."
-              tailscale down
+          foreach ($d in $targets) {
+            try {
+              Invoke-RestMethod -Method Delete -Uri "https://api.tailscale.com/api/v2/device/$($d.id)" -Headers @{ Authorization = "Basic $auth" }
+              Write-Host "Deleted: $($d.hostname)"
+            } catch { Write-Warning "Failed to delete $($d.hostname): $($_.Exception.Message)" }
           }
-          if ($pc_input -eq "B" -or $pc_input -eq "All") {
-              Write-Host "Disconnecting Tailscale on PC $(${{ steps.pcnames.outputs.pc_b }})..."
-              tailscale down
-          }
-
-      # Step 5: Confirm
-      - name: Workflow complete
-        run: |
-          Write-Host "✅ Selected PC(s) disconnected from Tailscale and RustDesk stopped successfully!"
+          Write-Host "Cleanup complete."
