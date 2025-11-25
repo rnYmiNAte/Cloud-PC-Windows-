@@ -66,11 +66,6 @@ jobs:
       RDP_PASS: Bullet@12345
 
     steps:
-      - name: Load system specification
-        run: |
-        SPEC=$(cat specification.json)
-        echo "System Specs: $SPEC"
-
       - name: Set CRD flag early (safe read)
         run: |
           $crd = @'
