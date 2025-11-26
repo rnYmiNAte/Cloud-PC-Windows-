@@ -34,16 +34,16 @@ jobs:
         echo "Generated Password: ********"
 
     - name: Install Tailscale
-  shell: pwsh
-  run: |
-    choco install tailscale -y
-    $tsPath = "C:\Program Files\Tailscale"
-    if (!(Test-Path $tsPath)) {
+      shell: pwsh
+      run: |
+        choco install tailscale -y
+        $tsPath = "C:\Program Files\Tailscale"
+        if (!(Test-Path $tsPath)) {
         Write-Error "Tailscale folder not found! Installation likely failed."
         exit 1
-    }
-    $env:PATH = "$tsPath;$env:PATH"
-    tailscale version
+       }
+        $env:PATH = "$tsPath;$env:PATH"
+        tailscale version
 
 - name: Tailscale Login
   shell: pwsh
