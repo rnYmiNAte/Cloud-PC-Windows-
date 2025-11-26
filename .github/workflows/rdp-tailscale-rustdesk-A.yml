@@ -199,38 +199,6 @@ jobs:
             Write-Host "Purge disabled."
           }
 
-
-jobs:
-  setup-cloud-windows:
-    runs-on: windows-latest
-
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-
-    - name: Load Specifications
-      run: |
-        $spec = Get-Content specification.json | ConvertFrom-Json
-        echo "OS: $($spec.os)"
-        echo "CPU: $($spec.cpu)"
-        echo "RAM: $($spec.ram)"
-        echo "Storage: $($spec.storage)"
-        echo "Renderer: $($spec.renderer)"
-        echo "Network Speed: $($spec.network_speed)"
-
-    - name: Generate Username and Password
-      run: |
-        $Username = "User_" + -join ((48..57) + (97..122) | Get-Random -Count 6 | % {[char]$_})
-        $Password = -join ((33..126) | Get-Random -Count 12 | % {[char]$_})
-        echo "USERNAME=$Username" >> $env:GITHUB_ENV
-        echo "PASSWORD=$Password" >> $env:GITHUB_ENV
-
-    - name: Display Credentials (Masked)
-      run: |
-        echo "Generated Username: $env:USERNAME"
-        echo "Generated Password: ********"
-
-    
       - name: Install + Up Tailscale
         run: |
           $ts = "$env:ProgramFiles\Tailscale\tailscale.exe"
