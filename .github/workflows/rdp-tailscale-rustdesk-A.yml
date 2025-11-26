@@ -37,9 +37,10 @@ jobs:
       run: |
         choco install tailscale -y
 
-    - name: Authenticate Tailscale
+    - name: Tailscale Login
+      shell: pwsh
       run: |
-        tailscale up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }} --accept-routes
+        tailscale up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }} --accept-dns=false --accept-routes
 
 
     - name: Install Rustdesk
