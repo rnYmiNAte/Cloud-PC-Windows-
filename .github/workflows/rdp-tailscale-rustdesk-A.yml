@@ -34,13 +34,9 @@ jobs:
         echo "Generated Password: ********"
 
     - name: Install Tailscale
-        run: |
-          choco install tailscale -y
-          tailscale version
-          
-    - name: Connect Tailscale
-         run: |
-          tailscale up --authkey ${{ github.event.inputs.authkey }} --hostname ${{ steps.specs.outputs.pc_name }}
+      run: |
+        choco install tailscale -y
+        tailscale up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }}
 
 
     - name: Install Rustdesk
