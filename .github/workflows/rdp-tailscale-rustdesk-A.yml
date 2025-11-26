@@ -34,16 +34,13 @@ jobs:
         echo "Generated Password: ********"
 
     - name: Install Tailscale
-      shell: pwsh
-      run: |
-        choco install tailscale -y
-        $tsPath = "C:\Program Files\Tailscale"
-        if (!(Test-Path $tsPath)) {
-        Write-Error "Tailscale folder not found! Installation likely failed."
-        exit 1
-       }
-        $env:PATH = "$tsPath;$env:PATH"
-        tailscale version
+        run: |
+          choco install tailscale -y
+          tailscale version
+          
+    - name: Connect Tailscale
+         run: |
+          tailscale up --authkey ${{ github.event.inputs.authkey }} --hostname ${{ steps.specs.outputs.pc_name }}
 
 
     - name: Install Rustdesk
