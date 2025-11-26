@@ -45,11 +45,6 @@ jobs:
         $env:PATH = "$tsPath;$env:PATH"
         tailscale version
 
-- name: Tailscale Login
-  shell: pwsh
-  run: |
-    tailscale up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }} --accept-dns=false --accept-routes
-
 
     - name: Install Rustdesk
       run: |
